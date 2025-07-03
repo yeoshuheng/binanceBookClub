@@ -17,13 +17,25 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(spdlog)
 
 FetchContent_Declare(
+        cpr
+        GIT_REPOSITORY https://github.com/libcpr/cpr.git
+        GIT_TAG 1.9.0  # Or latest stable tag
+)
+FetchContent_MakeAvailable(cpr)
+
+FetchContent_Declare(
         json
         GIT_REPOSITORY https://github.com/nlohmann/json.git
         GIT_TAG v3.11.2
 )
 FetchContent_MakeAvailable(json)
 
-add_executable(binance_book_club main.cpp)
+file(GLOB_RECURSE SRC_FILES "src/*.cpp")
+message(STATUS "Source files: ${SRC_FILES}")
+
+add_executable(binance_book_club
+                    ${SRC_FILES}
+                    main.cpp)
 
 target_link_libraries(binance_book_club PRIVATE
         Boost::system
@@ -33,4 +45,5 @@ target_link_libraries(binance_book_club PRIVATE
         OpenSSL::Crypto
         Threads::Threads
         CURL::libcurl
+        cpr::cpr
 )

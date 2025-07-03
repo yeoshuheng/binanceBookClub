@@ -8,7 +8,7 @@
 #include <thread>
 
 #include "ThreadHandler.h"
-#include "../OrderBook.h"
+#include "../orderbook/OrderBook.h"
 
 class SnapshotHandler : public ThreadHandler {
     std::shared_ptr<OrderBook> order_book;

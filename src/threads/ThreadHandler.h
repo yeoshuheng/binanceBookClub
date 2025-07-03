@@ -13,19 +13,14 @@ protected:
 
     virtual void do_stuff() = 0;
 
-    void action_loop() {
-        while (running.load(std::memory_order_relaxed)) {
-            do_stuff();
-        }
-    }
-
 public:
+    ThreadHandler() {}
     virtual ~ThreadHandler() { ThreadHandler::stop_handler();};
 
     void start_handler() {
         if (running.load(std::memory_order_relaxed)) return;
         running.store(true, std::memory_order_relaxed);
-        action_thread = std::thread([this]() { action_loop(); });
+        action_thread = std::thread([this]() { do_stuff(); });
     }
 
     virtual void stop_handler() {

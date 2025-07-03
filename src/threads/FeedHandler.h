@@ -18,7 +18,7 @@ class FeedHandler final : public ThreadHandler {
 
     io_context &ioc;
     ssl_context &soc;
-    std::unique_ptr<Websocket> ws;
+    Websocket ws;
 
     const std::string sub_msg;
 

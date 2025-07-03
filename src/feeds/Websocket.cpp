@@ -38,7 +38,7 @@ std::string Websocket::subscribe(const std::string &subscribe_order) {
 
     read_buffer.consume(read_buffer.size());
     socket.read(read_buffer);
-    std::string ret = boost::beast::buffers_to_string(read_buffer);
+    std::string ret = beast::buffers_to_string(read_buffer.data());
 
     read_buffer.consume(read_buffer.size());
     return ret;
