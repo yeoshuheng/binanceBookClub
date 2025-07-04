@@ -31,6 +31,14 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(simdjson)
 
+FetchContent_Declare(
+        fast_float
+        GIT_REPOSITORY https://github.com/fastfloat/fast_float.git
+        GIT_TAG        v5.2.0  # Or the latest tag
+)
+
+FetchContent_MakeAvailable(fast_float)
+
 file(GLOB_RECURSE SRC_FILES "src/*.cpp")
 message(STATUS "Source files: ${SRC_FILES}")
 
@@ -42,6 +50,7 @@ target_link_libraries(binance_book_club PRIVATE
         Boost::system
         spdlog::spdlog
         simdjson
+        fast_float
         OpenSSL::SSL
         OpenSSL::Crypto
         Threads::Threads

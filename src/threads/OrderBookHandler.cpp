@@ -21,12 +21,41 @@ std::shared_ptr<const OrderBook> OrderBookHandler::get_order_book_view() {
     return order_book;
 }
 
+// this logging is unsafe, but for logging (best effort) i think it's fine, because we don't want to put a mutex on the OB
+void OrderBookHandler::start_logging() {
+    while (running.load(std::memory_order_relaxed)) {
+        std::shared_ptr<OrderBook> snapshot_copy;
+        {
+            snapshot_copy = this->order_book;
+        }
+        if (snapshot_copy) {
+            spdlog::info("version={}, total_orders_processed={}, avg_processing_time={}ns\n{}", order_book_last_update_id, orders_processed, (time_taken_ns / orders_processed), snapshot_copy->to_string());
+        } else {
+            spdlog::warn("snapshot not ready yet");
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+}
+
+void OrderBookHandler::start_handler() {
+    if (running.load(std::memory_order_relaxed)) return;
+    logging_thread = std::thread([this]() { start_logging(); });
+    ThreadHandler::start_handler();
+}
+
+void OrderBookHandler::stop_handler() {
+    if (!running.load()) return;
+    if (logging_thread.joinable()) {
+        logging_thread.join();
+    }
+    ThreadHandler::stop_handler();
+}
+
+
 void OrderBookHandler::do_stuff() {
 
     BookUpdate incoming_update{};
-
-    int64_t time_taken_ns = 0;
-    int orders_processed = 0;
 
     while (running.load(std::memory_order_relaxed)) {
 
@@ -40,8 +69,6 @@ void OrderBookHandler::do_stuff() {
         }
 
         if (queue_in.pop(incoming_update)) {
-
-            auto start = std::chrono::high_resolution_clock::now();
 
             // remove incoming data that ends before our snapshot (stale)
             if (incoming_update.last_update_id <= order_book_last_full_snapshot_id) {
@@ -67,10 +94,6 @@ void OrderBookHandler::do_stuff() {
             orders_processed++;
             const int64_t tick_to_update = update_finish_time - incoming_update.sys_recv_time;
             time_taken_ns += tick_to_update;
-
-            if (orders_processed > 0 && orders_processed % 1000 == 0) {
-                spdlog::info("version={}, order_processing_time={}ns, total_orders_processed={}, avg_processing_time={}ns\n{}", order_book_last_update_id, tick_to_update, orders_processed, (time_taken_ns / orders_processed), order_book->to_string());
-            }
         }
     }
 }

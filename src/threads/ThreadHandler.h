@@ -17,7 +17,7 @@ public:
     ThreadHandler() {}
     virtual ~ThreadHandler() { ThreadHandler::stop_handler();};
 
-    void start_handler() {
+    virtual void start_handler() {
         if (running.load(std::memory_order_relaxed)) return;
         running.store(true, std::memory_order_relaxed);
         action_thread = std::thread([this]() { do_stuff(); });

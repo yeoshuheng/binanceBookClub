@@ -33,16 +33,23 @@ class OrderBookHandler final : public ThreadHandler {
     int64_t order_book_last_update_id;
     int64_t order_book_last_full_snapshot_id;
 
+    int64_t time_taken_ns = 0;
+    int orders_processed = 0;
+
+    std::thread logging_thread;
+
     bool reload_order_book = true;
 
     void do_stuff() override;
     void load_order_book_from_snapshot();
     void update_order_book(const BookUpdate& incoming_update);
+    void stop_handler() override;
+    void start_logging();
 
 public:
     explicit OrderBookHandler(std::string  snapshot_url, update_queue &queue_in);
     ~OrderBookHandler() override;
-
+    void start_handler() override;
     std::shared_ptr<const OrderBook> get_order_book_view();
 };
 

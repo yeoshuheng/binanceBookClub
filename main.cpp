@@ -3,10 +3,15 @@
 #include "src/threads/FeedHandler.h"
 #include <iostream>
 
+#include "spdlog/async.h"
+
 int main() {
 
-    const auto console = spdlog::stderr_color_mt("console");
-    console->set_level(spdlog::level::info);
+    auto async_console_logger = spdlog::stdout_color_mt<spdlog::async_factory>("async_console");
+
+    spdlog::set_default_logger(async_console_logger);
+    spdlog::flush_on(spdlog::level::info);
+
     spdlog::set_pattern("[%H:%M:%S] [%^%l%$] %v");
     spdlog::info("logger initialised.");
 
