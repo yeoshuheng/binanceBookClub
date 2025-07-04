@@ -85,10 +85,14 @@ int OrderBook::search_side(const double target_price, const int side_size, const
 
 void OrderBook::found_price_update_side(const int index_to_update, std::array<BookLevel, ORDERBOOK_MAX_DEPTH>& side, int &side_size, const double quantity, const bool is_ask) {
     if (quantity == 0) { // remove the price from the side
+
         if (index_to_update < side_size - 1) {
-            std::memmove(&side[index_to_update], &side[index_to_update + 1], sizeof(BookLevel) * (side_size - 1 - index_to_update));
+            for (int i = index_to_update; i < side_size - 1; ++i) {
+                side[i] = side[i + 1];
+            }
         }
         side[side_size - 1] = {};
+
         side_size--;
     } else { // directly update the index
         side[index_to_update].quantity = quantity;
@@ -117,7 +121,10 @@ void OrderBook::not_found_price_update_side(const int index_to_update, std::arra
     }
 
     // add new book level
-    std::memmove(&side[index_to_update + 1], &side[index_to_update], sizeof(BookLevel) * (index_to_copy_to - index_to_update));
+    for (int i = index_to_copy_to - 1; i >= index_to_update; --i) {
+        side[i + 1] = side[i];
+    }
+
     side[index_to_update] = {price, quantity};
 
     // update side sizes

@@ -68,7 +68,7 @@ void OrderBookHandler::do_stuff() {
             const int64_t tick_to_update = update_finish_time - incoming_update.sys_recv_time;
             time_taken_ns += tick_to_update;
 
-            if (orders_processed > 0 && orders_processed % 5000 == 0) {
+            if (orders_processed > 0 && orders_processed % 1000 == 0) {
                 spdlog::info("version={}, order_processing_time={}ns, total_orders_processed={}, avg_processing_time={}ns\n{}", order_book_last_update_id, tick_to_update, orders_processed, (time_taken_ns / orders_processed), order_book->to_string());
             }
         }
