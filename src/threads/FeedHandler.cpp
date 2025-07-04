@@ -17,9 +17,11 @@ void FeedHandler::do_stuff() {
     try {
         // handles connection + subscribe synchronously
         ws.connect(host, port, target);
-        std::string sub_results = ws.subscribe(sub_msg);
-        spdlog::info("subscribed to stream, resp: {}", sub_results);
 
+        if (sub_msg != "") {
+            std::string sub_results = ws.subscribe(sub_msg);
+            spdlog::info("subscribed to stream, resp: {}", sub_results);
+        }
         // handles streaming asynchronously
         ws.start_async_read();
         ioc.run();

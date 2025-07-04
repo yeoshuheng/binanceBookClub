@@ -8,7 +8,7 @@
 #include "nlohmann/json.hpp"
 #include "spdlog/spdlog.h"
 
-OrderBookHandler::OrderBookHandler(update_queue &queue_in) : queue_in(queue_in) {}
+OrderBookHandler::OrderBookHandler(const std::string& snapshot_url, update_queue &queue_in) : queue_in(queue_in), snapshot_url(snapshot_url), order_book_last_update_id(0) {}
 
 OrderBookHandler::~OrderBookHandler() {
     spdlog::info("closing order book builder.");
@@ -19,33 +19,69 @@ void OrderBookHandler::do_stuff() {
     BookUpdate incoming_update{};
 
     while (running.load(std::memory_order_relaxed)) {
+
+        // we start from a new book, we prepopulate first.
+        if (reload_order_book) {
+            load_order_book_from_snapshot();
+            // ensure the depth snapshot is greater than our first event.
+            while (order_book_last_update_id < incoming_update.last_update_id) {
+                load_order_book_from_snapshot();
+            }
+        }
+
         if (queue_in.pop(incoming_update)) {
 
-            // ensure that the update is valid from the initial snapshot used to build the order book.
-            if (incoming_update.check_against_snapshot < inital_snapshot_id) {
-                spdlog::warn("dropping snapshot with id={}, stale from snapshot");
+            // remove incoming data that ends before our snapshot (stale)
+            if (incoming_update.last_update_id <= order_book_last_full_snapshot_id) {
+                spdlog::warn("stale update: update_first_id={}, update_last_id={}, orderbook_id={}", incoming_update.first_update_id, incoming_update.last_update_id, order_book_last_update_id);
+                continue;
+            }
+            if (incoming_update.last_update_id < order_book_last_update_id) {
+                spdlog::warn("stale update: update_first_id={}, update_last_id={}, orderbook_id={}", incoming_update.first_update_id, incoming_update.last_update_id, order_book_last_update_id);
                 continue;
             }
 
-            if (incoming_update.is_ask) {
-                order_book.update_ask(incoming_update.price, incoming_update.quantity);
-            } else {
-                order_book.update_bid(incoming_update.price, incoming_update.quantity);
+            // incoming data starts after our snapshot, we most likely missed something.
+            if (incoming_update.first_update_id > order_book_last_update_id + 1) {
+                spdlog::warn("missed update, reloading orderbook: update_first_id={}, update_last_id={}, orderbook_id={}", incoming_update.first_update_id, incoming_update.last_update_id, order_book_last_update_id);
+                reload_order_book = true;
+                continue;
             }
-            spdlog::debug(order_book.to_string());
+
+            update_order_book(incoming_update);
+
+            spdlog::info("version={} \n {}", order_book_last_update_id, order_book.to_string());
         }
     }
 }
 
-void OrderBookHandler::initialise_order_book(const std::string& url) {
-    spdlog::info("Initialising order book with snapshot from {}...", url);
-    if (cpr::Response r = cpr::Get(cpr::Url{url}); r.status_code == 200) {
+void OrderBookHandler::update_order_book(const BookUpdate& incoming_update) {
+
+    // add price levels.
+    if (incoming_update.is_ask) {
+        order_book.update_ask(incoming_update.price, incoming_update.quantity);
+    } else {
+        order_book.update_bid(incoming_update.price, incoming_update.quantity);
+    }
+
+    // update current version of order book
+    order_book_last_update_id = incoming_update.last_update_id;
+}
+
+void OrderBookHandler::load_order_book_from_snapshot() {
+    spdlog::info("Initialising order book with snapshot from {}...", snapshot_url);
+
+    // build a new order book.
+    order_book = OrderBook();
+
+    if (cpr::Response r = cpr::Get(cpr::Url{snapshot_url}); r.status_code == 200) {
         auto json = nlohmann::json::parse(r.text);
         double quantity;
         double price;
 
-        inital_snapshot_id = json["lastUpdateId"].get<int64_t>();
-        spdlog::info("initial order book snapshot id: {}", inital_snapshot_id);
+        order_book_last_update_id = order_book_last_full_snapshot_id = json["lastUpdateId"].get<int64_t>();
+        reload_order_book = false;
+
         if (json.contains("bids")) {
             for (const auto& bid : json["bids"]) {
                 price = std::stod(bid[0].get<std::string>());
@@ -62,8 +98,7 @@ void OrderBookHandler::initialise_order_book(const std::string& url) {
                 order_book.update_ask(price, quantity);
             }
         }
-        spdlog::info("order book successfully initialised.");
-        spdlog::info(order_book.to_string());
+        spdlog::info("order book successfully initialised with order book id={}", order_book_last_update_id);
     } else {
         throw std::runtime_error("failed to get snapshot to construct initial orderbook, status_code=" + r.status_code);
     }

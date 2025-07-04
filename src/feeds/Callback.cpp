@@ -23,22 +23,23 @@ std::function<void(const std::string_view&)> build_resp_handler(boost::lockfree:
         double quantity;
         double price;
 
-        int64_t check_against_id = json["u"].get<int64_t>();
+        const int64_t first_update_id = json["U"].get<int64_t>();
+        const int64_t last_update_id = json["u"].get<int64_t>();
 
-        if (json.contains("bids")) {
-            for (const auto& bid : json["bids"]) {
+        if (json.contains("b")) {
+            for (const auto& bid : json["b"]) {
                 price = std::stod(bid[0].get<std::string>());
                 quantity = std::stod(bid[1].get<std::string>());
-                BookUpdate update{check_against_id, false, price, quantity};
+                BookUpdate update{first_update_id, last_update_id, false, price, quantity};
                 update_queue.push(update);
             }
         }
 
-        if (json.contains("asks")) {
-            for (const auto& ask : json["asks"]) {
+        if (json.contains("a")) {
+            for (const auto& ask : json["a"]) {
                 price = std::stod(ask[0].get<std::string>());
                 quantity = std::stod(ask[1].get<std::string>());
-                BookUpdate update{check_against_id, true, price, quantity};
+                BookUpdate update{first_update_id, last_update_id, true, price, quantity};
                 update_queue.push(update);
             }
         }
