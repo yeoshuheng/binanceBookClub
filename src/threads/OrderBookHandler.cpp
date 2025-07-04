@@ -68,7 +68,9 @@ void OrderBookHandler::do_stuff() {
             const int64_t tick_to_update = update_finish_time - incoming_update.sys_recv_time;
             time_taken_ns += tick_to_update;
 
-            spdlog::info("version={}, order_processing_time={}ns, total_orders_processed={}, avg_processing_time={}ns", order_book_last_update_id, tick_to_update, orders_processed, (time_taken_ns / orders_processed));
+            if (orders_processed > 0 && orders_processed % 5000 == 0) {
+                spdlog::info("version={}, order_processing_time={}ns, total_orders_processed={}, avg_processing_time={}ns\n{}", order_book_last_update_id, tick_to_update, orders_processed, (time_taken_ns / orders_processed), order_book->to_string());
+            }
         }
     }
 }
@@ -92,7 +94,7 @@ void OrderBookHandler::load_order_book_from_snapshot() {
     // build a new order book.
     order_book = std::make_shared<OrderBook>();
 
-    if (cpr::Response r = cpr::Get(cpr::Url{snapshot_url}); r.status_code == 200) {
+    if (const cpr::Response r = cpr::Get(cpr::Url{snapshot_url}); r.status_code == 200) {
 
         simdjson::dom::parser parser;
         const simdjson::dom::element json = parser.parse(r.text);
@@ -118,6 +120,6 @@ void OrderBookHandler::load_order_book_from_snapshot() {
 
         spdlog::info("order book successfully initialised with order book id={}", order_book_last_update_id);
     } else {
-        throw std::runtime_error("failed to get snapshot to construct initial orderbook, status_code=" + r.status_code);
+        throw std::runtime_error("failed to get snapshot to construct initial orderbook, status_code=" + std::to_string(r.status_code));
     }
 }
