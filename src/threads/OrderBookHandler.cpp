@@ -18,6 +18,9 @@ void OrderBookHandler::do_stuff() {
 
     BookUpdate incoming_update{};
 
+    std::chrono::nanoseconds time_taken_ns{0};
+    int orders_processed = 0;
+
     while (running.load(std::memory_order_relaxed)) {
 
         // we start from a new book, we prepopulate first.
@@ -31,9 +34,11 @@ void OrderBookHandler::do_stuff() {
 
         if (queue_in.pop(incoming_update)) {
 
+            auto start = std::chrono::high_resolution_clock::now();
+
             // remove incoming data that ends before our snapshot (stale)
             if (incoming_update.last_update_id <= order_book_last_full_snapshot_id) {
-                spdlog::warn("stale update: update_first_id={}, update_last_id={}, orderbook_id={}", incoming_update.first_update_id, incoming_update.last_update_id, order_book_last_update_id);
+                spdlog::warn("stale update: update_first_id={}, update_last_id={}, orderbook_last_full_snap_id={}", incoming_update.first_update_id, incoming_update.last_update_id, order_book_last_full_snapshot_id);
                 continue;
             }
             if (incoming_update.last_update_id < order_book_last_update_id) {
@@ -50,7 +55,13 @@ void OrderBookHandler::do_stuff() {
 
             update_order_book(incoming_update);
 
-            spdlog::info("version={} \n {}", order_book_last_update_id, order_book.to_string());
+            // tracking time
+            auto end = std::chrono::high_resolution_clock::now();
+            auto time_taken_for_this_order_ns = end - start;
+            time_taken_ns += time_taken_for_this_order_ns;
+            orders_processed++;
+
+            spdlog::info("version={}, order_processing_time={}ns, total_orders_processed={}, avg_processing_time={}ns \n {}", order_book_last_update_id, time_taken_for_this_order_ns.count(), orders_processed, (time_taken_ns / orders_processed).count(), order_book.to_string());
         }
     }
 }
