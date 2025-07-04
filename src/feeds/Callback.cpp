@@ -25,8 +25,8 @@ std::function<void(const std::string_view&)> build_resp_handler(boost::lockfree:
         simdjson::dom::parser parser;
         const simdjson::dom::element json = parser.parse(msg);
 
-        double quantity;
-        double price;
+        float quantity;
+        float price;
 
         const int64_t first_update_id = json["U"].get<int64_t>();
         const int64_t last_update_id = json["u"].get<int64_t>();

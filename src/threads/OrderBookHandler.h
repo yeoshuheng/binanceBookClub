@@ -17,8 +17,8 @@ struct BookUpdate {
     int64_t last_update_id; // u
 
     bool is_ask;
-    double price;
-    double quantity;
+    float price;
+    float quantity;
 };
 
 using update_queue = boost::lockfree::spsc_queue<BookUpdate>;
@@ -40,11 +40,15 @@ class OrderBookHandler final : public ThreadHandler {
 
     bool reload_order_book = true;
 
-    void do_stuff() override;
-    void load_order_book_from_snapshot();
-    void update_order_book(const BookUpdate& incoming_update);
     void stop_handler() override;
     void start_logging();
+
+    /**
+     * Hot path functions
+     */
+    void do_stuff() override;
+    void update_order_book(const BookUpdate& incoming_update);
+    void load_order_book_from_snapshot();
 
 public:
     explicit OrderBookHandler(std::string  snapshot_url, update_queue &queue_in);

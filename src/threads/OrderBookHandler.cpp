@@ -121,8 +121,8 @@ void OrderBookHandler::load_order_book_from_snapshot() {
 
         simdjson::dom::parser parser;
         const simdjson::dom::element json = parser.parse(r.text);
-        double quantity;
-        double price;
+        float quantity;
+        float price;
 
         order_book_last_update_id = order_book_last_full_snapshot_id = json["lastUpdateId"].get<int64_t>();
         reload_order_book = false;
