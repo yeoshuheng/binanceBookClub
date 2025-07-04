@@ -25,7 +25,7 @@ double OrderBook::get_top_ask() const {return ask[0].price;};
 
 double OrderBook::get_spread() const {return get_top_ask() - get_top_bid();};
 
-double OrderBook::get_mid_price() const {return get_spread() / 2;};
+double OrderBook::get_mid_price() const {return get_top_ask() + (get_spread() / 2);};
 
 double OrderBook::get_bid_size() const {return bid_size;};
 
@@ -42,12 +42,12 @@ std::span<const BookLevel> OrderBook::get_bid() const {
 std::string OrderBook::to_string() const {
     std::stringstream ss;
     ss << "l1={" << "bid=" << std::to_string(get_top_bid()) << ", ask=" << std::to_string(get_top_ask()) << ", mid=" << std::to_string(get_mid_price()) << "}\n";
-    ss << "bids={" << "\n";
+    ss << "asks={" << "\n";
     for (const auto& level : get_ask()) {
         ss << level.to_string() << "\n";
     }
     ss << "}" << "\n";
-    ss << "asks={" << "\n";
+    ss << "bids={" << "\n";
     for (const auto& level : get_bid()) {
         ss << level.to_string() << "\n";
     }
@@ -72,8 +72,8 @@ int OrderBook::search_side(const double target_price, const int side_size, const
             } else {
                 left = mid + 1;
             }
-        } else { // for bid orders we want the lower bound, bid orders are ascending.
-            if (side[mid].price < target_price) {
+        } else { // for bid orders we want the lower bound, bid orders are descending.
+            if (side[mid].price > target_price) {
                 left = mid + 1;
             } else {
                 right = mid;
