@@ -9,19 +9,19 @@
  * Main user functions.
  */
 
-OrderBook::OrderBook(): bid(), ask(), bid_size(0), ask_size(0) {}
+OrderBook::OrderBook(): bid_price(), ask_price(), bid_qty(), ask_qty(), bid_size(0), ask_size(0) {}
 
 void OrderBook::update_bid(const double price, const double quantity) {
-    update_side(bid, bid_size, price, quantity, false);
+    update_side(bid_price, bid_qty, bid_size, price, quantity, false);
 }
 
 void OrderBook::update_ask(const double price, const double quantity) {
-    update_side(ask, ask_size, price, quantity, true);
+    update_side(ask_price, ask_qty, ask_size, price, quantity, true);
 }
 
-double OrderBook::get_top_bid() const {return bid[0].price;};
+double OrderBook::get_top_bid() const {return bid_price[0];};
 
-double OrderBook::get_top_ask() const {return ask[0].price;};
+double OrderBook::get_top_ask() const {return ask_price[0];};
 
 double OrderBook::get_spread() const {return get_top_ask() - get_top_bid();};
 
@@ -31,25 +31,18 @@ double OrderBook::get_bid_size() const {return bid_size;};
 
 double OrderBook::get_ask_size() const {return ask_size;};
 
-std::span<const BookLevel>  OrderBook::get_ask() const {
-    return {ask.data(), ask.size()};
-}
-
-std::span<const BookLevel> OrderBook::get_bid() const {
-    return {bid.data(), bid.size()};
-}
 
 std::string OrderBook::to_string() const {
     std::stringstream ss;
     ss << "l1={" << "bid=" << std::to_string(get_top_bid()) << ", ask=" << std::to_string(get_top_ask()) << ", mid=" << std::to_string(get_mid_price()) << "}\n";
     ss << "asks={" << "\n";
-    for (const auto& level : get_ask()) {
-        ss << level.to_string() << "\n";
+    for (int i = 0; i < ask_size; i++) {
+     ss << "{" << "price=" << std::to_string(ask_price[i]) << ", qty=" << std::to_string(ask_qty[i]) << "},\n";
     }
     ss << "}" << "\n";
     ss << "bids={" << "\n";
-    for (const auto& level : get_bid()) {
-        ss << level.to_string() << "\n";
+    for (int i = 0; i < bid_size; i++) {
+        ss << "{" << "price=" << std::to_string(bid_price[i]) << ", qty=" << std::to_string(bid_qty[i]) << "},\n";
     }
     ss << "}" << "\n";
     return ss.str();
@@ -59,21 +52,38 @@ std::string OrderBook::to_string() const {
  * Functions for order book update operations.
  */
 
-int OrderBook::search_side(const double target_price, const int side_size, const std::array<BookLevel, ORDERBOOK_MAX_DEPTH> &side, bool is_ask) {
+int OrderBook::search_side_linear(const double target_price, const int side_size, const std::array<double, ORDERBOOK_MAX_DEPTH>& side_price, bool is_ask) {
+    if (is_ask) {
+        for (int i = 0; i < side_size; ++i) {
+            if (side_price[i] >= target_price) {
+                return i;
+            }
+        }
+    } else {
+        for (int i = 0; i < side_size; ++i) {
+            if (side_price[i] <= target_price) {
+                return i;
+            }
+        }
+    }
+    return side_size;
+}
+
+int OrderBook::search_side(const double target_price, const int side_size, const std::array<double, ORDERBOOK_MAX_DEPTH> &side_price, bool is_ask) {
     int left = 0; int right = side_size; int mid = 0;
     while (left < right) {
         mid = left + (right - left) / 2;
-        if (side[mid].price == target_price) {
+        if (side_price[mid] == target_price) {
             return mid;
         }
         if (is_ask) { // for ask orders we want the upper bound, ask orders are ascending.
-            if (side[mid].price > target_price) {
+            if (side_price[mid] > target_price) {
                 right = mid;
             } else {
                 left = mid + 1;
             }
         } else { // for bid orders we want the lower bound, bid orders are descending.
-            if (side[mid].price > target_price) {
+            if (side_price[mid] > target_price) {
                 left = mid + 1;
             } else {
                 right = mid;
@@ -83,26 +93,29 @@ int OrderBook::search_side(const double target_price, const int side_size, const
     return left;
 }
 
-void OrderBook::found_price_update_side(const int index_to_update, std::array<BookLevel, ORDERBOOK_MAX_DEPTH>& side, int &side_size, const double quantity, const bool is_ask) {
+void OrderBook::found_price_update_side(const int index_to_update, std::array<double, ORDERBOOK_MAX_DEPTH>& side_price, std::array<double, ORDERBOOK_MAX_DEPTH>& side_qty, int &side_size, const double quantity, const bool is_ask) {
     if (quantity == 0) { // remove the price from the side
 
         if (index_to_update < side_size - 1) {
             for (int i = index_to_update; i < side_size - 1; ++i) {
-                side[i] = side[i + 1];
+                side_price[i] = side_price[i + 1];
+                side_qty[i] = side_qty[i + 1];
             }
         }
-        side[side_size - 1] = {};
+
+        side_price[side_size - 1] = 0;
+        side_qty[side_size - 1] = 0;
 
         side_size--;
     } else { // directly update the index
-        side[index_to_update].quantity = quantity;
+        side_qty[index_to_update] = quantity;
     }
 };
 
 
-bool OrderBook::is_updated_not_needed(const std::array<BookLevel, ORDERBOOK_MAX_DEPTH>& side, const int side_size, const double price, const double quantity, const bool is_ask) {
+bool OrderBook::is_updated_not_needed(const std::array<double, ORDERBOOK_MAX_DEPTH>& side_price, const int side_size, const double price, const double quantity, const bool is_ask) {
     if (ORDERBOOK_MAX_DEPTH == side_size) {
-        if (is_ask && price > side[side_size - 1].price || !is_ask && price < side[side_size - 1].price) {
+        if (is_ask && price > side_price[side_size - 1] || !is_ask && price < side_price[side_size - 1]) {
             return true;
         }
     }
@@ -110,7 +123,7 @@ bool OrderBook::is_updated_not_needed(const std::array<BookLevel, ORDERBOOK_MAX_
 };
 
 
-void OrderBook::not_found_price_update_side(const int index_to_update, std::array<BookLevel, ORDERBOOK_MAX_DEPTH>& side, int &side_size, const double price, const double quantity, const bool is_ask) {
+void OrderBook::not_found_price_update_side(const int index_to_update, std::array<double, ORDERBOOK_MAX_DEPTH>& side_price, std::array<double, ORDERBOOK_MAX_DEPTH>& side_qty, int &side_size, const double price, const double quantity, const bool is_ask) {
     if (quantity == 0) return;
 
     // remove worst book level by isolating it from the memmove
@@ -122,23 +135,32 @@ void OrderBook::not_found_price_update_side(const int index_to_update, std::arra
 
     // add new book level
     for (int i = index_to_copy_to - 1; i >= index_to_update; --i) {
-        side[i + 1] = side[i];
+        side_price[i + 1] = side_price[i];
+        side_qty[i + 1] = side_qty[i];
     }
 
-    side[index_to_update] = {price, quantity};
+    side_price[index_to_update] = price;
+    side_qty[index_to_update] = quantity;
 
     // update side sizes
     side_size++;
 };
 
-void OrderBook::update_side(std::array<BookLevel, ORDERBOOK_MAX_DEPTH>& side, int &side_size, const double price, const double quantity, const bool is_ask) {
-    if (is_updated_not_needed(side, side_size, price, quantity, is_ask)) return;
+void OrderBook::update_side(std::array<double, ORDERBOOK_MAX_DEPTH>& side_price, std::array<double, ORDERBOOK_MAX_DEPTH>& side_qty, int &side_size, const double price, const double quantity, const bool is_ask) {
+    if (is_updated_not_needed(side_price, side_size, price, quantity, is_ask)) return;
 
-    if (const int index_to_update = search_side(price, side_size, side, is_ask);
-        index_to_update < side_size && side[index_to_update].price == price) { // found the price in the side
-       found_price_update_side(index_to_update, side, side_size, quantity, is_ask);
+    int index_to_update;
+    if (ORDERBOOK_MAX_DEPTH < 25) {
+        index_to_update = search_side_linear(price, side_size, side_price, is_ask);
     } else {
-        not_found_price_update_side(index_to_update, side, side_size, price, quantity, is_ask);
+        index_to_update = search_side(price, side_size, side_price, is_ask);
+    }
+
+    if (
+        index_to_update < side_size && side_price[index_to_update] == price) { // found the price in the side
+       found_price_update_side(index_to_update, side_price, side_qty, side_size, quantity, is_ask);
+    } else {
+        not_found_price_update_side(index_to_update, side_price, side_qty, side_size, price, quantity, is_ask);
     }
 };
 
