@@ -24,11 +24,12 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(cpr)
 
 FetchContent_Declare(
-        json
-        GIT_REPOSITORY https://github.com/nlohmann/json.git
-        GIT_TAG v3.11.2
+        simdjson
+        GIT_REPOSITORY https://github.com/simdjson/simdjson.git
+        GIT_TAG v3.2.1  # or latest stable tag
 )
-FetchContent_MakeAvailable(json)
+
+FetchContent_MakeAvailable(simdjson)
 
 file(GLOB_RECURSE SRC_FILES "src/*.cpp")
 message(STATUS "Source files: ${SRC_FILES}")
@@ -40,7 +41,7 @@ add_executable(binance_book_club
 target_link_libraries(binance_book_club PRIVATE
         Boost::system
         spdlog::spdlog
-        nlohmann_json::nlohmann_json
+        simdjson
         OpenSSL::SSL
         OpenSSL::Crypto
         Threads::Threads

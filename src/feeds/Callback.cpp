@@ -3,7 +3,8 @@
 //
 
 #include "Callback.h"
-#include <nlohmann/json.hpp>
+
+#include <simdjson.h>
 #include "spdlog/spdlog.h"
 
 namespace beast = boost::beast;
@@ -14,34 +15,35 @@ std::function<void(const beast::error_code&)> build_error_handler() {
     };
 }
 
-std::function<void(const std::string_view&)> build_resp_handler(boost::lockfree::queue<BookUpdate>& update_queue) {
+std::function<void(const std::string_view&)> build_resp_handler(boost::lockfree::spsc_queue<BookUpdate>& update_queue) {
     return [&update_queue](const std::string_view& msg) {
 
         spdlog::debug("incoming_msg={}", msg);
 
-        auto json = nlohmann::json::parse(msg);
+        const int64_t recv_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+
+        simdjson::dom::parser parser;
+        const simdjson::dom::element json = parser.parse(msg);
+
         double quantity;
         double price;
 
         const int64_t first_update_id = json["U"].get<int64_t>();
         const int64_t last_update_id = json["u"].get<int64_t>();
 
-        if (json.contains("b")) {
-            for (const auto& bid : json["b"]) {
-                price = std::stod(bid[0].get<std::string>());
-                quantity = std::stod(bid[1].get<std::string>());
-                BookUpdate update{first_update_id, last_update_id, false, price, quantity};
-                update_queue.push(update);
-            }
+        for (const auto& bid : json["b"]) {
+            price = std::stod(std::string(bid.at(0)));
+            quantity = std::stod(std::string(bid.at(1)));
+            BookUpdate update{recv_time, first_update_id, last_update_id, false, price, quantity};
+            update_queue.push(update);
         }
 
-        if (json.contains("a")) {
-            for (const auto& ask : json["a"]) {
-                price = std::stod(ask[0].get<std::string>());
-                quantity = std::stod(ask[1].get<std::string>());
-                BookUpdate update{first_update_id, last_update_id, true, price, quantity};
-                update_queue.push(update);
-            }
+        for (const auto& ask : json["a"]) {
+            price = std::stod(std::string(ask.at(0)));
+            quantity = std::stod(std::string(ask.at(1)));
+            BookUpdate update{recv_time, first_update_id, last_update_id, true, price, quantity};
+            update_queue.push(update);
         }
+
     };
 }

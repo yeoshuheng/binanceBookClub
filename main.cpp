@@ -25,7 +25,7 @@ int main() {
       "id": 1
     })";
 
-    boost::lockfree::queue<BookUpdate> update_queue{1024};
+    boost::lockfree::spsc_queue<BookUpdate> update_queue{1024};
 
     auto l2_feed = FeedHandler(update_queue, ioc, soc, host, port, target, sub_msg);
     l2_feed.start_handler();

@@ -4,13 +4,13 @@
 
 #ifndef FEEDHANDLER_H
 #define FEEDHANDLER_H
-#include <boost/lockfree/queue.hpp>
+#include <boost/lockfree/spsc_queue.hpp>
 
 #include "OrderBookHandler.h"
 #include "ThreadHandler.h"
 #include "../feeds/Websocket.h"
 
-using queue = boost::lockfree::queue<BookUpdate>;
+using queue = boost::lockfree::spsc_queue<BookUpdate>;
 
 class FeedHandler final : public ThreadHandler {
 
