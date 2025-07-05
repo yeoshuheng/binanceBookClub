@@ -52,7 +52,7 @@ std::string OrderBook::to_string() const {
  * Functions for order book update operations.
  */
 
-int OrderBook::search_side_linear(const float target_price, const int side_size, const std::array<float, ORDERBOOK_MAX_DEPTH>& side_price, bool is_ask) {
+int OrderBook::search_side_linear(const float target_price, const int side_size, const std::array<float, ORDERBOOK_MAX_DEPTH>& __restrict side_price, bool is_ask) {
     if (is_ask) {
         for (int i = 0; i < side_size; ++i) {
             if (side_price[i] >= target_price) {
@@ -69,7 +69,7 @@ int OrderBook::search_side_linear(const float target_price, const int side_size,
     return side_size;
 }
 
-int OrderBook::search_side(const float target_price, const int side_size, const std::array<float, ORDERBOOK_MAX_DEPTH> &side_price, bool is_ask) {
+int OrderBook::search_side(const float target_price, const int side_size, const std::array<float, ORDERBOOK_MAX_DEPTH>& __restrict side_price, bool is_ask) {
     int left = 0; int right = side_size; int mid = 0;
     while (left < right) {
         mid = left + (right - left) / 2;
@@ -93,7 +93,7 @@ int OrderBook::search_side(const float target_price, const int side_size, const 
     return left;
 }
 
-void OrderBook::found_price_update_side(const int index_to_update, std::array<float, ORDERBOOK_MAX_DEPTH>& side_price, std::array<float, ORDERBOOK_MAX_DEPTH>& side_qty, int &side_size, const float quantity, const bool is_ask) {
+void OrderBook::found_price_update_side(const int index_to_update, std::array<float, ORDERBOOK_MAX_DEPTH>& __restrict side_price, std::array<float, ORDERBOOK_MAX_DEPTH>& __restrict side_qty, int &side_size, const float quantity, const bool is_ask) {
     if (quantity == 0) { // remove the price from the side
 
         if (index_to_update < side_size - 1) {
@@ -111,7 +111,7 @@ void OrderBook::found_price_update_side(const int index_to_update, std::array<fl
 };
 
 
-bool OrderBook::is_updated_not_needed(const std::array<float, ORDERBOOK_MAX_DEPTH>& side_price, const int side_size, const float price, const float quantity, const bool is_ask) {
+bool OrderBook::is_updated_not_needed(const std::array<float, ORDERBOOK_MAX_DEPTH>& __restrict side_price, const int side_size, const float price, const float quantity, const bool is_ask) {
     if (ORDERBOOK_MAX_DEPTH == side_size) {
         if (is_ask && price > side_price[side_size - 1] || !is_ask && price < side_price[side_size - 1]) {
             return true;
@@ -121,7 +121,7 @@ bool OrderBook::is_updated_not_needed(const std::array<float, ORDERBOOK_MAX_DEPT
 };
 
 
-void OrderBook::not_found_price_update_side(const int index_to_update, std::array<float, ORDERBOOK_MAX_DEPTH>& side_price, std::array<float, ORDERBOOK_MAX_DEPTH>& side_qty, int &side_size, const float price, const float quantity, const bool is_ask) {
+void OrderBook::not_found_price_update_side(const int index_to_update, std::array<float, ORDERBOOK_MAX_DEPTH>& __restrict side_price, std::array<float, ORDERBOOK_MAX_DEPTH>& __restrict side_qty, int &side_size, const float price, const float quantity, const bool is_ask) {
     if (quantity == 0) return;
 
     // remove worst book level by isolating it from the memmove
@@ -142,7 +142,7 @@ void OrderBook::not_found_price_update_side(const int index_to_update, std::arra
     side_size++;
 };
 
-void OrderBook::update_side(std::array<float, ORDERBOOK_MAX_DEPTH>& side_price, std::array<float, ORDERBOOK_MAX_DEPTH>& side_qty, int &side_size, const float price, const float quantity, const bool is_ask) {
+void OrderBook::update_side(std::array<float, ORDERBOOK_MAX_DEPTH>& __restrict side_price, std::array<float, ORDERBOOK_MAX_DEPTH>& __restrict side_qty, int &side_size, const float price, const float quantity, const bool is_ask) {
     if (is_updated_not_needed(side_price, side_size, price, quantity, is_ask)) return;
 
     if (int index_to_update = search_side_linear(price, side_size, side_price, is_ask);

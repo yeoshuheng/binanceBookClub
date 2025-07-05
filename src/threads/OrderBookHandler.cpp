@@ -128,15 +128,15 @@ void OrderBookHandler::load_order_book_from_snapshot() {
         reload_order_book = false;
 
         for (const auto& bid : json["bids"]) {
-            price = std::stod(std::string(bid.at(0)));
-            quantity = std::stod(std::string(bid.at(1)));
+            price = std::stof(std::string(bid.at(0)));
+            quantity = std::stof(std::string(bid.at(1)));
             spdlog::debug("update: price={}, qty={}", price, quantity);
             order_book->update_bid(price, quantity);
         }
 
         for (const auto& ask : json["asks"]) {
-            price = std::stod(std::string(ask.at(0)));
-            quantity = std::stod(std::string(ask.at(1)));
+            price = std::stof(std::string(ask.at(0)));
+            quantity = std::stof(std::string(ask.at(1)));
             spdlog::debug("update: price={}, qty={}", price, quantity);
             order_book->update_ask(price, quantity);
         }

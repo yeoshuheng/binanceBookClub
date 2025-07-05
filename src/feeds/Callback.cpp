@@ -32,15 +32,15 @@ std::function<void(const std::string_view&)> build_resp_handler(boost::lockfree:
         const int64_t last_update_id = json["u"].get<int64_t>();
 
         for (const auto& bid : json["b"]) {
-            price = std::stod(std::string(bid.at(0)));
-            quantity = std::stod(std::string(bid.at(1)));
+            price = std::stof(std::string(bid.at(0)));
+            quantity = std::stof(std::string(bid.at(1)));
             BookUpdate update{recv_time, first_update_id, last_update_id, false, price, quantity};
             update_queue.push(update);
         }
 
         for (const auto& ask : json["a"]) {
-            price = std::stod(std::string(ask.at(0)));
-            quantity = std::stod(std::string(ask.at(1)));
+            price = std::stof(std::string(ask.at(0)));
+            quantity = std::stof(std::string(ask.at(1)));
             BookUpdate update{recv_time, first_update_id, last_update_id, true, price, quantity};
             update_queue.push(update);
         }

@@ -66,7 +66,7 @@ public:
     /**
      * Display functions
      */
-    std::string to_string() const;
+    [[nodiscard]] std::string to_string() const;
 
 
     /**
